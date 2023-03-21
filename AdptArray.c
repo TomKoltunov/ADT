@@ -5,6 +5,9 @@
 
 #include "AdptArray.h"
 #include <stddef.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 typedef struct AdptArray_
 {
@@ -12,9 +15,10 @@ typedef struct AdptArray_
 	PElement* pElemArr;
 	DEL_FUNC delFunc;
 	COPY_FUNC copyFunc;
+    PRINT_FUNC printFunc;
 }AdptArray, *PAdptArray;
 
-PAdptArray CreateAdptArray(COPY_FUNC copyFunc_, DEL_FUNC delFunc_)
+PAdptArray CreateAdptArray(COPY_FUNC copyFunc_, DEL_FUNC delFunc_, PRINT_FUNC printFunc)
 {
 	PAdptArray pArr = (PAdptArray)malloc(sizeof(AdptArray));
 	if (pArr == NULL)
@@ -23,6 +27,7 @@ PAdptArray CreateAdptArray(COPY_FUNC copyFunc_, DEL_FUNC delFunc_)
 	pArr->pElemArr = NULL;
 	pArr->delFunc = delFunc_;
 	pArr->copyFunc = copyFunc_;
+    pArr->printFunc = printFunc;
 	return pArr;
 }
 
@@ -37,10 +42,16 @@ Result SetAdptArrayAt(PAdptArray pArr, int idx, PElement pNewElem)
 		if ((newpElemArr = (PElement*)calloc((idx + 1), sizeof(PElement))) == NULL)
 			return FAIL;
 		memcpy(newpElemArr, pArr->pElemArr, (pArr->ArrSize) * sizeof(PElement));
-		free(pArr->pElemArr);
+        if(pArr->pElemArr != NULL) // Without this check we'll receive a Segmentation fault (core dumped)
+        {
+            free(pArr->pElemArr);
+        }
 		pArr->pElemArr = newpElemArr;
 	}
-	pArr->delFunc((pArr->pElemArr)[idx]);
+    if(pArr->pElemArr[idx] != NULL) // Without this check we'll receive a Segmentation fault (core dumped)
+    {
+        pArr->delFunc((pArr->pElemArr)[idx]);
+    }
 	(pArr->pElemArr)[idx] = pArr->copyFunc(pNewElem);
 	pArr->ArrSize = (idx >= pArr->ArrSize) ? (idx + 1) : pArr->ArrSize;
 	return SUCCESS;
@@ -53,8 +64,39 @@ void DeleteAdptArray(PAdptArray pArr)
 		return;
 	for(i = 0; i < pArr->ArrSize; ++i)
 	{
-		pArr->delFunc((pArr->pElemArr)[i]);
+        if(pArr->pElemArr[i] != NULL) // Without this check we'll receive a Segmentation fault (core dumped)
+        {
+            pArr->delFunc((pArr->pElemArr)[i]);
+        }
 	}
 	free(pArr->pElemArr);
 	free(pArr);
+}
+
+PElement GetAdptArrayAt(PAdptArray pArr, int idx) 
+{
+    if (pArr->pElemArr[idx] == NULL || idx >= pArr->ArrSize)
+    {
+        return NULL;
+    }
+    return pArr->copyFunc((pArr->pElemArr)[idx]);
+}
+
+int GetAdptArraySize(PAdptArray pArr)
+{
+    return pArr->ArrSize;
+}
+
+void PrintDB(PAdptArray pArr)
+{
+    int i;
+	if (pArr == NULL)
+		return;
+	for(i = 0; i < pArr->ArrSize; ++i)
+	{
+		if (pArr->pElemArr[i] != NULL)
+        {
+            pArr->printFunc(pArr->pElemArr[i]);
+        }
+	}
 }
